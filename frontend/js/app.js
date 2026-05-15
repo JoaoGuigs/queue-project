@@ -7,6 +7,19 @@ let dayChart = null;
 
 const $ = (sel) => document.querySelector(sel);
 
+/**
+ * Base URL for API calls (no trailing slash).
+ * Port 8000: local uvicorn — routes at /reports (no /api).
+ * Other ports (e.g. 8081 + Apache): same origin with /api proxy prefix.
+ */
+function getApiBase() {
+  const origin = window.location.origin.replace(/\/$/, "");
+  if (window.location.port === "8000") {
+    return origin;
+  }
+  return `${origin}/api`;
+}
+
 function getIsoWeek(d = new Date()) {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   const day = date.getUTCDay() || 7;
@@ -24,17 +37,13 @@ function loadSettings() {
 }
 
 function saveSettings() {
-  const data = {
-    apiBase: $("#api-base").value.trim() || window.location.origin,
-    apiKey: $("#api-key").value,
-  };
+  const data = { apiKey: $("#api-key").value };
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  showAlert("Configurações salvas nesta sessão.", "success");
+  showAlert("Chave salva nesta sessão.", "success");
 }
 
 function initSettings() {
   const saved = loadSettings();
-  $("#api-base").value = saved.apiBase || window.location.origin;
   $("#api-key").value = saved.apiKey || "";
 
   const now = new Date();
@@ -119,11 +128,11 @@ function togglePeriodFields() {
 
 async function fetchReport(body) {
   const saved = loadSettings();
-  const apiBase = ($("#api-base").value.trim() || saved.apiBase || window.location.origin).replace(/\/$/, "");
+  const apiBase = getApiBase();
   const apiKey = $("#api-key").value || saved.apiKey;
 
   if (!apiKey) {
-    throw new Error("Informe a chave API em Conexão → X-API-Key e clique em Salvar na sessão.");
+    throw new Error("Informe a chave API em Autenticação e clique em Salvar na sessão.");
   }
 
   const res = await fetch(`${apiBase}/reports/queue-activity`, {
