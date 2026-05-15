@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Relatório de Filas — Queue Activity</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
+  <script src="/js/app.js" type="module" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-icon" aria-hidden="true">◉</span>
+        <div>
+          <strong>Queue Activity</strong>
+          <span>Relatórios PBX</span>
+        </div>
+      </div>
+
+      <form id="report-form" class="filter-form" autocomplete="off">
+        <fieldset>
+          <legend>Período</legend>
+          <div class="segmented" role="group" aria-label="Tipo de período">
+            <label class="segmented-item">
+              <input type="radio" name="period_type" value="weekly" checked />
+              <span>Semanal</span>
+            </label>
+            <label class="segmented-item">
+              <input type="radio" name="period_type" value="monthly" />
+              <span>Mensal</span>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Ano</span>
+            <input type="number" id="year" name="year" min="2000" max="2100" required />
+          </label>
+          <label class="field field-week">
+            <span>Semana ISO</span>
+            <input type="number" id="week" name="week" min="1" max="53" />
+          </label>
+          <label class="field field-month hidden">
+            <span>Mês</span>
+            <select id="month" name="month">
+              <option value="1">Janeiro</option>
+              <option value="2">Fevereiro</option>
+              <option value="3">Março</option>
+              <option value="4">Abril</option>
+              <option value="5">Maio</option>
+              <option value="6">Junho</option>
+              <option value="7">Julho</option>
+              <option value="8">Agosto</option>
+              <option value="9">Setembro</option>
+              <option value="10">Outubro</option>
+              <option value="11">Novembro</option>
+              <option value="12">Dezembro</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Filas <small>(opcional, separadas por vírgula)</small></span>
+          <input type="text" id="queues" name="queues" placeholder="ex: sales, support" />
+        </label>
+
+        <label class="field">
+          <span>Agentes <small>(opcional, IDs separados por vírgula)</small></span>
+          <input type="text" id="agents" name="agents" placeholder="ex: 1001, 1002" />
+        </label>
+
+        <button type="submit" class="btn-primary" id="submit-btn">
+          <span class="btn-label">Gerar relatório</span>
+          <span class="spinner hidden" aria-hidden="true"></span>
+        </button>
+      </form>
+
+      <details class="settings-panel">
+        <summary>Conexão</summary>
+        <label class="field">
+          <span>URL da API</span>
+          <input type="url" id="api-base" placeholder="http://localhost:8000" />
+        </label>
+        <label class="field">
+          <span>Chave API (X-API-Key)</span>
+          <input type="password" id="api-key" autocomplete="off" />
+        </label>
+        <button type="button" class="btn-ghost" id="save-settings">Salvar na sessão</button>
+      </details>
+    </aside>
+
+    <main class="main">
+      <header class="main-header">
+        <div>
+          <h1>Relatório de atividade</h1>
+          <p id="period-subtitle" class="subtitle">Configure o período e gere o relatório.</p>
+        </div>
+        <div class="header-meta">
+          <span id="cache-badge" class="badge hidden">Cache</span>
+          <span id="generated-at" class="meta-text"></span>
+        </div>
+      </header>
+
+      <div id="alert" class="alert hidden" role="alert"></div>
+
+      <section id="empty-state" class="empty-state">
+        <div class="empty-icon" aria-hidden="true">📊</div>
+        <h2>Nenhum relatório ainda</h2>
+        <p>Selecione semana ou mês e clique em <strong>Gerar relatório</strong>.</p>
+      </section>
+
+      <section id="report" class="report hidden">
+        <div class="kpi-grid" id="kpi-grid"></div>
+
+        <div class="charts-row">
+          <article class="card chart-card">
+            <h2>Chamadas por dia</h2>
+            <div class="chart-wrap">
+              <canvas id="chart-by-day" aria-label="Gráfico de chamadas por dia"></canvas>
+            </div>
+          </article>
+          <article class="card chart-card">
+            <h2>Taxa de atendimento</h2>
+            <div class="answer-rate-display">
+              <span id="answer-rate-value" class="answer-rate-value">—</span>
+              <span class="answer-rate-label">das chamadas atendidas</span>
+            </div>
+            <ul class="summary-list" id="summary-extra"></ul>
+          </article>
+        </div>
+
+        <div class="tables-row">
+          <article class="card table-card">
+            <h2>Por fila</h2>
+            <div class="table-scroll">
+              <table id="table-queues">
+                <thead>
+                  <tr>
+                    <th>Fila</th>
+                    <th>Total</th>
+                    <th>Atendidas</th>
+                    <th>Abandonadas</th>
+                    <th>Talk médio</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </article>
+          <article class="card table-card">
+            <h2>Por agente</h2>
+            <div class="table-scroll">
+              <table id="table-agents">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Nome</th>
+                    <th>Atendidas</th>
+                    <th>Talk médio</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
