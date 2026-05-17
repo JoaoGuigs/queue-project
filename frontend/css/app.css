@@ -176,21 +176,31 @@ body {
   display: none;
 }
 
-.btn-primary {
+.form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.btn-primary,
+.btn-secondary {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+.btn-primary {
   padding: 0.75rem 1rem;
   border: none;
-  border-radius: 10px;
   background: var(--accent);
   color: #fff;
-  font-family: inherit;
   font-size: 0.95rem;
   font-weight: 600;
-  cursor: pointer;
   transition: background 0.15s;
 }
 
@@ -198,9 +208,28 @@ body {
   background: var(--accent-hover);
 }
 
-.btn-primary:disabled {
+.btn-primary:disabled,
+.btn-secondary:disabled {
   opacity: 0.65;
   cursor: not-allowed;
+}
+
+.btn-secondary {
+  padding: 0.65rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-sidebar);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.35);
 }
 
 .btn-ghost {

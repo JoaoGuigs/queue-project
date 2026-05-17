@@ -117,6 +117,15 @@ function setLoading(loading) {
   btn.disabled = loading;
   btn.querySelector(".btn-label").textContent = loading ? "Gerando…" : "Gerar relatório";
   btn.querySelector(".spinner").classList.toggle("hidden", !loading);
+  $("#export-csv-btn").disabled = loading;
+}
+
+function setExportLoading(loading) {
+  const btn = $("#export-csv-btn");
+  btn.disabled = loading;
+  btn.querySelector(".btn-label").textContent = loading ? "Exportando…" : "Exportar CSV detalhado";
+  btn.querySelector(".spinner").classList.toggle("hidden", !loading);
+  $("#submit-btn").disabled = loading;
 }
 
 function togglePeriodFields() {
@@ -156,6 +165,60 @@ async function fetchReport(body) {
   }
 
   return res.json();
+}
+
+function parseFilenameFromDisposition(header) {
+  if (!header) return null;
+  const utf8 = header.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8) return decodeURIComponent(utf8[1]);
+  const plain = header.match(/filename="?([^";]+)"?/i);
+  return plain ? plain[1] : null;
+}
+
+async function downloadCsvExport(body) {
+  const saved = loadSettings();
+  const apiBase = getApiBase();
+  const apiKey = $("#api-key").value || saved.apiKey;
+
+  if (!apiKey) {
+    throw new Error("Informe a chave API em Autenticação e clique em Salvar na sessão.");
+  }
+
+  const res = await fetch(`${apiBase}/reports/queue-activity/export`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": apiKey,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const err = await res.json();
+      detail = err.detail ?? detail;
+    } catch {
+      try {
+        detail = (await res.text()).slice(0, 200) || detail;
+      } catch {
+        /* ignore */
+      }
+    }
+    throw new Error(typeof detail === "string" ? detail : `Erro ${res.status}`);
+  }
+
+  const blob = await res.blob();
+  const filename =
+    parseFilenameFromDisposition(res.headers.get("Content-Disposition")) ||
+    "queue-activity.csv";
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function renderKpis(summary) {
@@ -320,6 +383,22 @@ async function onSubmit(e) {
   }
 }
 
+async function onExportCsv() {
+  hideAlert();
+  setExportLoading(true);
+
+  try {
+    const body = buildRequestBody();
+    await downloadCsvExport(body);
+    showAlert("CSV detalhado baixado com sucesso.", "success");
+  } catch (err) {
+    showAlert(err.message || "Falha ao exportar CSV.");
+    console.error(err);
+  } finally {
+    setExportLoading(false);
+  }
+}
+
 function init() {
   initSettings();
   togglePeriodFields();
@@ -329,6 +408,7 @@ function init() {
   });
 
   $("#report-form").addEventListener("submit", onSubmit);
+  $("#export-csv-btn").addEventListener("click", onExportCsv);
   $("#save-settings").addEventListener("click", saveSettings);
 }
 

@@ -60,6 +60,27 @@ async def fetch_one(
             row = await cur.fetchone()  # Útil para SELECT com agregação (uma linha)
             return row
 
+#itera sobre as linhas do resultado da query
+#retorna cada linha como um dict
+#batch_size é o tamanho do lote de linhas a serem retornadas
+async def iter_dict_rows(
+    pool: aiomysql.Pool,
+    sql: str,
+    args: Sequence[Any] | None = None,
+    *,
+    batch_size: int = 1000,
+) -> AsyncIterator[dict[str, Any]]:
+    """Stream SELECT rows in batches (keeps one connection open until exhausted)."""
+    async with pool.acquire() as conn:
+        async with conn.cursor(aiomysql.DictCursor) as cur:
+            await cur.execute(sql, args or ())
+            while True:
+                batch = await cur.fetchmany(batch_size)
+                if not batch:
+                    break
+                for row in batch:
+                    yield row
+
 
 @asynccontextmanager
 async def lifespan_pool() -> AsyncIterator[aiomysql.Pool]:

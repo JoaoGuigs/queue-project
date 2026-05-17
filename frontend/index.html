@@ -75,10 +75,16 @@
           <input type="text" id="agents" name="agents" placeholder="ex: 1001, 1002" />
         </label>
 
-        <button type="submit" class="btn-primary" id="submit-btn">
-          <span class="btn-label">Gerar relatório</span>
-          <span class="spinner hidden" aria-hidden="true"></span>
-        </button>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" id="submit-btn">
+            <span class="btn-label">Gerar relatório</span>
+            <span class="spinner hidden" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="btn-secondary" id="export-csv-btn" title="Uma linha por chamada em PBX_QUEUEMON">
+            <span class="btn-label">Exportar CSV detalhado</span>
+            <span class="spinner hidden" aria-hidden="true"></span>
+          </button>
+        </div>
       </form>
 
       <details class="settings-panel">
