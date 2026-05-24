@@ -1,25 +1,24 @@
-"""Short-lived in-memory cache for assembled report payloads.
+"""Distributed cache for assembled report payloads using Redis.
 
-Uses ``cachetools.TTLCache`` with a 10-second TTL.
-
-**Limitation:** The cache is **per Python process**. If you run multiple
-Uvicorn/Gunicorn workers, each worker maintains its own isolated cache.
+Stores payloads as JSON strings with a 10-second TTL.
+Unlike the in-memory cache, this is shared across all Uvicorn workers
+and scales horizontally.
 """
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import json
 from typing import Any
 
-from cachetools import TTLCache
+import redis.asyncio as redis
 
+from app.config import settings
 from app.schemas.request import QueueActivityRequest
 
-# Cache em memória por processo: TTL 10s, até 256 chaves distintas
-_report_cache: TTLCache[str, Any] = TTLCache(maxsize=256, ttl=10)
-_cache_lock = asyncio.Lock()  # Evita corrida entre requests paralelos no mesmo worker
+# Cria a conexão com o Redis. 
+# decode_responses=True garante que o Redis devolva strings em vez de bytes.
+redis_client = redis.from_url(settings.redis_url, decode_responses=True)
 
 
 def make_cache_key(request: QueueActivityRequest) -> str:
@@ -30,10 +29,20 @@ def make_cache_key(request: QueueActivityRequest) -> str:
 
 
 async def get_cached_report(cache_key: str) -> Any | None:
-    async with _cache_lock:
-        return _report_cache.get(cache_key)  # Hit → dict serializado do relatório
+    """Fetches the report from Redis and parses the JSON back to a dictionary."""
+    cached_data = await redis_client.get(cache_key)
+    
+    if cached_data is not None:
+        # Transforma o texto JSON do Redis de volta em um dicionário Python
+        return json.loads(cached_data)
+        
+    return None
 
 
 async def set_cached_report(cache_key: str, value: Any) -> None:
-    async with _cache_lock:
-        _report_cache[cache_key] = value  # Armazena payload já em formato JSON-friendly
+    """Serializes the payload to JSON and stores it in Redis with a 10s TTL."""
+    # Transforma o dicionário (value) em texto JSON puro
+    json_data = json.dumps(value)
+    
+    # setex = Set with Expiration (Chave, Tempo em Segundos, Valor)
+    await redis_client.setex(name=cache_key, time=10, value=json_data)

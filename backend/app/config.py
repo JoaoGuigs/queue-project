@@ -22,6 +22,6 @@ class Settings(BaseSettings):
     api_key: str = Field(..., alias="API_KEY")  # Deve bater com o header X-API-Key
 
     external_status_url: str | None = Field(default=None, alias="EXTERNAL_STATUS_URL")  # URL opcional (probe no startup)
-
+    redis_url: str = Field(default="redis://redis:6379/0", alias="REDIS_URL")
 
 settings = Settings()  # Instância única usada em todo o app
